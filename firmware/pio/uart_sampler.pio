@@ -1,0 +1,10 @@
+.program uart_sampler
+; Sample one GPIO input at every PIO instruction iteration.
+; Configure the state machine clock divider to the desired sample rate.
+; Autopush sends one sampled bit per FIFO word; capture buffer stores packed bits
+; in LSB-first order as consumed by DMA. This deliberately prioritizes a simple,
+; inspectable first capture path over a more complex multi-channel sampler.
+
+.wrap_target
+    in pins, 1
+.wrap
