@@ -103,7 +103,7 @@ python3 host/logic_capture.py --input examples/sample_capture.json --baud 115200
 python3 -m unittest discover -s tests -v
 ```
 
-`sample_capture.json` contains uniformly sampled digital values and sampling rate metadata. The host tools can decode it without the RP2040 hardware. The live USB transport uses the documented packet format; a host serial backend can be supplied using PySerial when connecting to the device.
+`sample_capture.json` contains uniformly sampled digital values and sampling rate metadata. The host tools can decode it without the RP2040 hardware. For live use, capture the raw USB CDC byte stream to a file and pass that file to the decoder; the host extracts a versioned `ULAC` packet from any preceding text banner. A future improvement is an interactive PySerial capture client that sends commands and saves packet boundaries automatically.
 
 ## UART decoder assumptions
 
@@ -111,7 +111,7 @@ python3 -m unittest discover -s tests -v
 - A falling edge marks a candidate start bit.
 - Configurable baud rate, data bits, parity, and stop bits are supported by the host decoder.
 - The sample rate should be several times the configured baud rate; higher oversampling improves timing tolerance.
-- This first version decodes samples from a single digital input and does not provide analog thresholding or multi-channel correlation.
+- This first version decodes samples from a single digital input and does not provide analog thresholding or multi-channel correlation. Edge trigger currently gates the start of capture; circular pre-trigger history is not implemented.
 
 ## Performance and limitations
 
