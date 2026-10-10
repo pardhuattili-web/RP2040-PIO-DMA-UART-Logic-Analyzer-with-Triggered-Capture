@@ -1,0 +1,2 @@
+start_sample,time_ns,value,hex,character,parity_ok,framing_ok
+16,17361,72,0x48,H,,True
