@@ -5,9 +5,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import struct
 from pathlib import Path
 
-from protocol import Capture, decode_packet
+from protocol import Capture, decode_packet, HEADER
 from uart_decoder import decode_uart
 from export_vcd import write_vcd
 
@@ -16,6 +17,18 @@ def load_capture(path: Path) -> Capture:
     raw = path.read_bytes()
     if raw[:4] == b"ULAC":
         return decode_packet(raw)
+    # Firmware currently writes a short text banner to USB CDC before command mode.
+    # Extract one packet by its magic marker and declared sample count.
+    marker = raw.find(b"ULAC")
+    if marker >= 0:
+        tail = raw[marker:]
+        if len(tail) < HEADER.size:
+            raise ValueError("found ULAC marker but header is incomplete")
+        count = struct.unpack_from("<I", tail, 12)[0]
+        packet_len = HEADER.size + count
+        if len(tail) < packet_len:
+            raise ValueError(f"incomplete USB capture packet: need {packet_len}, got {len(tail)}")
+        return decode_packet(tail[:packet_len])
     doc = json.loads(raw.decode("utf-8"))
     samples = doc["samples"]
     return Capture(int(doc["sample_rate_hz"]), int(doc.get("gpio_pin", 2)),
