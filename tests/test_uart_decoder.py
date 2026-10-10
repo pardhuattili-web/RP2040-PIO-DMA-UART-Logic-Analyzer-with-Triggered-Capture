@@ -25,7 +25,7 @@ class UartDecoderTests(unittest.TestCase):
         samples = synthesize_uart(b"A", sample_rate, baud, idle_samples=16)
         # Corrupt the centre of the first stop bit.
         frame_start = 16
-        stop_centre = int(frame_start + (1.5 + 8) * 8)
+        stop_centre = int(frame_start + (1.5 + 8 + 0.5) * 8)
         samples[stop_centre] = 0
         frames = decode_uart(samples, sample_rate, baud)
         self.assertEqual(len(frames), 1)
