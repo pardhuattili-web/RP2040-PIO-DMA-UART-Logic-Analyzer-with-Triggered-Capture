@@ -1,6 +1,5 @@
 """Sample-based asynchronous UART decoder; no hardware dependency."""
 from __future__ import annotations
-
 from dataclasses import dataclass
 
 
@@ -19,12 +18,7 @@ class UartFrame:
 def decode_uart(samples: list[int], sample_rate_hz: int, baud: int,
                 data_bits: int = 8, parity: str = "none",
                 stop_bits: int = 1, idle: int = 1) -> list[UartFrame]:
-    """Decode UART frames from uniformly spaced digital samples.
-
-    The falling edge is detected at a high-to-low transition. Bits are sampled near
-    their centres. This simple decoder is intended for clean captures with a sample
-    rate >= 8x baud; it does not attempt automatic baud estimation.
-    """
+    """Decode clean uniformly sampled UART waveforms by bit-centre sampling."""
     if sample_rate_hz <= 0 or baud <= 0:
         raise ValueError("sample rate and baud must be positive")
     if sample_rate_hz < baud * 4:
@@ -44,20 +38,19 @@ def decode_uart(samples: list[int], sample_rate_hz: int, baud: int,
     n = len(samples)
 
     while i < n:
+        # Detect idle -> start transition. The first low sample is start edge.
         if samples[i - 1] == idle and samples[i] != idle:
             start = i
-            start_centre = start + 0.5 * spb
-            # Verify candidate start bit is still low at its centre.
-            start_idx = int(start_centre)
+            start_center = start + 0.5 * spb
+            start_idx = int(start_center)
             if start_idx >= n or samples[start_idx] == idle:
                 i += max(1, int(spb / 2))
                 continue
 
             value = 0
-            bit_centre = start + 1.5 * spb
             enough = True
             for bit in range(data_bits):
-                idx = int(bit_centre + bit * spb)
+                idx = int(start + (1.5 + bit) * spb)
                 if idx >= n:
                     enough = False
                     break
@@ -79,7 +72,7 @@ def decode_uart(samples: list[int], sample_rate_hz: int, baud: int,
 
             framing_ok = True
             for stop in range(stop_bits):
-                sidx = int(cursor + stop * spb)
+                sidx = int(cursor + (0.5 + stop) * spb)
                 if sidx >= n:
                     enough = False
                     break
@@ -99,7 +92,7 @@ def decode_uart(samples: list[int], sample_rate_hz: int, baud: int,
 def synthesize_uart(data: bytes, sample_rate_hz: int, baud: int,
                     data_bits: int = 8, parity: str = "none",
                     stop_bits: int = 1, idle_samples: int = 2) -> list[int]:
-    """Generate idealized sample data for tests and examples."""
+    """Generate ideal digital samples for deterministic unit tests."""
     if sample_rate_hz <= 0 or baud <= 0 or sample_rate_hz % baud != 0:
         raise ValueError("sample rate must be a positive integer multiple of baud")
     if data_bits not in (5, 6, 7, 8, 9) or stop_bits not in (1, 2):
@@ -116,7 +109,8 @@ def synthesize_uart(data: bytes, sample_rate_hz: int, baud: int,
         for bit in range(data_bits):
             samples.extend([(value >> bit) & 1] * spb)
         if parity != "none":
-            parity_bit = (value.bit_count() & 1) if parity == "even" else (1 - (value.bit_count() & 1))
+            ones = value.bit_count()
+            parity_bit = (ones & 1) if parity == "even" else (1 - (ones & 1))
             samples.extend([parity_bit] * spb)
         samples.extend([1] * (stop_bits * spb))
         samples.extend([1] * idle_samples)
